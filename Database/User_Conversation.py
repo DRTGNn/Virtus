@@ -34,3 +34,4 @@ def save_message(conversation_id, role, content):
 
     db.add(msg)
     db.commit()
+
