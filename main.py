@@ -1,13 +1,11 @@
 
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
-from backend.schemas import RequestVirtus
-from backend.routers import router_user, router_conversation, router_message, router_Virtus  
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from backend.routers import router_user, router_conversation, router_message
+from fastapi import FastAPI
+from backend.routers import router_user, router_conversation, router_message, router_Virtus
+from Database.db import Base, engine 
 
 app = FastAPI(title="Grete, mio Virtus!")
+
+Base.metadata.create_all(bind=engine)
 
 app.include_router(router_Virtus)
 app.include_router(router_user)
