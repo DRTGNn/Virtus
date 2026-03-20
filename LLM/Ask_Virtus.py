@@ -2,7 +2,7 @@ import requests
 
 LLM_URL = "http://localhost:11434/v1/chat/completions"
 
-SYSTEM_PROMPT = """
+SYSTEM_PROMPT_BASE = """
 You are Virtus, a calm stoic philosopher and mentor.
 
 You guide people toward discipline, clarity, courage, and wisdom.
@@ -22,12 +22,26 @@ Keep responses concise and thoughtful.
 
 Never create fictional scenarios such as games, competitions, or programming problems.
 """
-def ask_Virtus(messages):
+def ask_Virtus(messages, context=None):
+    system_prompt = SYSTEM_PROMPT_BASE
+
+    if context:
+        context_text = "\n\n".join(context)
+
+        system_prompt += f"""
+
+Use the following knowledge when relevant:
+
+{context_text}
+
+If the context is useful, incorporate it naturally into your response.
+Do not mention that you are using external context.
+"""
 
     payload = {
-        "model": "phi",
+        "model": "tinyllama",
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT}
+            {"role": "system", "content": system_prompt}
         ] + messages,
         "max_tokens": 500
     }
@@ -39,3 +53,5 @@ def ask_Virtus(messages):
         return answer
     else:
         return f"Error: {response.status_code} : {response.text}"
+
+    

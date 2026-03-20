@@ -63,7 +63,7 @@ if "messages" not in st.session_state:
 # -------------------------
 
 st.sidebar.title("Conversations")
-
+st.sidebar.info("📚 Upload knowledge from the 'Knowledge Upload' page")
 # Create new chat
 if st.sidebar.button("New Chat"):
 
@@ -73,42 +73,73 @@ if st.sidebar.button("New Chat"):
     )
 
     if res.status_code == 200:
-
         data = res.json()
-        st.session_state.conversation_id = data["conversation_id"]
-        st.session_state.messages = []
-        st.rerun()
 
-    else:
-        st.error(res.text)
+        if "conversation_id" in data:
+            st.session_state.conversation_id = data["conversation_id"]
 
-# Load conversation list
-res = requests.get(f"{API_URL}/virtus/users/1/conversations")
-
-if res.status_code == 200:
-
-    conversations = res.json()
-
-    for conv in conversations:
-
-        if st.sidebar.button(f"Chat {conv['id']}"):
-
-            st.session_state.conversation_id = conv["id"]
+        if "conversation_id" in data:
+            st.session_state.conversation_id = data["conversation_id"]
             st.session_state.messages = []
             st.rerun()
 
+    else:
+        st.error("Failed to create conversation")
+
+# Load conversation list
+# Load conversations
+res = requests.get(f"{API_URL}/virtus/users/1/conversations")
+print(res.json())
+if res.status_code == 200:
+    conversations = res.json()
+else:
+    conversations = []
+
+# Display conversations
+for conv in conversations:
+
+    col1, col2 = st.sidebar.columns([4,1])
+
+    label = (
+        f"🟢 Chat {conv['id']}"
+        if conv["id"] == st.session_state.conversation_id
+        else f"Chat {conv['id']}"
+    )
 # -------------------------
 # LOAD CHAT HISTORY
 # -------------------------
+    with col1:
+        if st.button(label, key=f"chat_{conv['id']}"):
 
-if st.session_state.conversation_id:
+            # switch conversation
+            st.session_state.conversation_id = conv["id"]
 
-    res = requests.get(
-        f"{API_URL}/virtus/conversations/{st.session_state.conversation_id}"
-    )
+            # fetch messages for that chat
+            res = requests.get(
+                f"{API_URL}/virtus/conversations/{conv['id']}"
+            )
 
-    if res.status_code == 200:
-        st.session_state.messages = res.json()["messages"]
+            if res.status_code == 200:
+                st.session_state.messages = res.json()["messages"]
+            else:
+                st.session_state.messages = []
+
+            st.rerun()
+
+    with col2:
+        if st.button("❌", key=f"delete_{conv['id']}"):
+
+            res = requests.delete(
+                f"{API_URL}/virtus/conversations/{conv['id']}"
+            )
+
+            if res.status_code == 200:
+
+                if st.session_state.conversation_id == conv["id"]:
+                    st.session_state.conversation_id = None
+                    st.session_state.messages = []
+
+                st.rerun()
 
 # -------------------------
 # DISPLAY MESSAGES
@@ -120,7 +151,6 @@ for msg in st.session_state.messages:
 
     with st.chat_message(msg["role"], avatar=avatar):
         st.write(msg["content"])
-
 # -------------------------
 # CHAT INPUT
 # -------------------------
@@ -147,7 +177,16 @@ if prompt:
         )
 
         if res.status_code == 200:
-            st.session_state.conversation_id = res.json()["conversation_id"]
+
+            data = res.json()
+            print(data)
+
+        if "conversation_id" in data:
+            st.session_state.conversation_id = data["conversation_id"]
+            st.session_state.messages = []
+            st.rerun()
+        else:
+            st.error(data)
 
     # thinking animation
     with st.chat_message("assistant", avatar=VIRTUS_AVATAR):
@@ -161,7 +200,7 @@ if prompt:
         ]
 
         for i in range(3):
-            placeholder.markdown(random.choice(thinking) + "." * (i+1))
+            placeholder.markdown(thinking[i % len(thinking)] + "." * (i+1))
             time.sleep(0.4)
 
         # ask backend
@@ -180,6 +219,12 @@ if prompt:
                 "role": "assistant",
                 "content": answer
             })
+            answer = res.json()["response"]
+
+            # DEBUG
+            if "context_used" in res.json():
+                st.caption("Context used:")
+                st.write(res.json()["context_used"])
 
         else:
             placeholder.markdown("Virtus could not respond.")
